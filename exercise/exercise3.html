@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>exercise3</title>
+</head>
+<style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+  </style>
+<body>
+    <script src="../examples/js/libs/cannon.js"></script>
+    <script type="module">
+        import * as THREE from '../build/three.module.js';
+		import { OrbitControls } from '../examples/jsm/controls/OrbitControls.js';
+        import { CannonPhysics } from './EasyCannon.js';
+        init();
+        animate();
+        function interaction()
+        {
+            for(var mesh of meshes)
+            {
+                if(indexMap.get(mesh).length==0)
+                {
+                    var body=meshMap.get(mesh);
+                    body.preStep=function()
+                    {
+                        var force=new CANNON.Vec3();
+                        for(var mesh2 of meshes)
+                        {
+                            var body2=meshMap.get(mesh2);
+                            var distancevec=this.position.vsub(body2.position);
+                            var distance=distancevec.length();
+                            if(distance>0)
+                            {
+                                //console.log(distance);
+                                var subforce=distancevec.scale(-g/Math.pow(distance,3));
+                                //console.log(subforce);
+                                force.vadd(subforce,force);
+                                //console.log(force);
+                            }
+                        }
+                    console.log(force);
+                    this.force=force;
+                    this.force.vadd(new CANNON.Vec3(0,-globalgravity,0),this.force);
+                    }
+                    
+                }
+            }
+        }
+        var camera, scene, renderer,position;
+        var physics;
+            function init() 
+            {
+                physics=new CannonPhysics();
+                camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 100 );
+                
+                camera.position.set( - 2, 2, 4 );
+                camera.lookAt( 0, 0, 0 );
+
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color( 0x666666 );
+                var light = new THREE.HemisphereLight();
+				light.intensity = 0.35;
+				scene.add( light );
+
+				var light = new THREE.DirectionalLight();
+				light.position.set( 5, 5, 5 );
+				light.castShadow = true;
+				light.shadow.camera.zoom = 2;
+                scene.add( light );
+                
+                for( var i=0; i<6; i++){
+                    position=new THREE.Vector3(1*Math.random() - 0.5, 4*Math.random()+2,Math.random() - 0.5);
+                    addSphere(position);
+                }
+                addzeroSphere(new THREE.Vector3(0,0.5,0));
+                /*
+                addSphere(new THREE.Vector3(-1,0.5,0));
+                addSphere(new THREE.Vector3(1,0.5,0));*/
+                addPlane();
+                
+
+
+
+
+
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.shadowMap.enabled = true;
+				renderer.outputEncoding = THREE.sRGBEncoding;
+				document.body.appendChild( renderer.domElement );
+
+				//
+
+				new OrbitControls( camera, renderer.domElement );
+
+			}
+
+			function animate() {
+
+                requestAnimationFrame( animate );
+				renderer.render( scene, camera );
+            }
+            function addSphere(vector,radius=0.1,mass=10)
+            {
+                var geometry = new THREE.SphereBufferGeometry(radius,20,20);
+                var material = new THREE.MeshLambertMaterial();
+                var mesh = new THREE.Mesh(geometry, material);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                var matrix = new THREE.Matrix4();
+                matrix.setPosition(vector);
+				mesh.applyMatrix4(matrix);
+                scene.add(mesh);
+                physics.addMesh(mesh,1);
+            }
+            function addzeroSphere(vector,radius=0.1,mass=0)
+            {
+                var geometry = new THREE.SphereBufferGeometry(radius,20,20);
+                var material = new THREE.MeshLambertMaterial();
+                var mesh = new THREE.Mesh(geometry, material);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                var matrix = new THREE.Matrix4();
+                matrix.setPosition(vector);
+				mesh.applyMatrix4(matrix);
+                scene.add(mesh);
+                physics.addzeroMesh(mesh,0);
+            }
+            function addPlane(vector=(0,0,0))
+            {
+                var plane = new THREE.Mesh(
+					new THREE.PlaneBufferGeometry( 5,5 ),
+                    //new THREE.ShadowMaterial( { color: 0x111111 } ),
+                    new THREE.MeshLambertMaterial()
+				);
+				plane.rotation.x = - Math.PI /2;
+				plane.receiveShadow = true;
+                scene.add( plane );
+                physics.addMesh(plane);
+            }
+            function addLine(mesh1,mesh2)
+            {
+                var pos1=mesh1.position;
+                var pos2=mesh2.position;
+                var points=[];
+                points.push(pos1);
+                points.push(pos2);
+                var material = new THREE.LineBasicMaterial( {
+                    color: 0xffffff,
+                    linewidth: 1,
+                    linecap: 'round', //ignored by WebGLRenderer
+                    linejoin:  'round' //ignored by WebGLRenderer
+                } );
+                var geometry = new THREE.BufferGeometry().setFromPoints( points );
+                var line = new THREE.Line( geometry, material );
+                scene.add(line);
+            }
+            window.addEventListener('resize', onResize);
+
+            function onResize() {
+            // サイズを取得
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+
+            // レンダラーのサイズを調整する
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(width, height);
+
+            // カメラのアスペクト比を正す
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            }
+    </script>
+</body>
+</html>

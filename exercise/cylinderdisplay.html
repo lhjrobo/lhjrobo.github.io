@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>exercise3</title>
+</head>
+<style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+  </style>
+<body>
+    <script src="../build/three.js"></script>
+    <script src="../examples/js/libs/cannon.js"></script>
+    <script type="module">
+        import { OrbitControls } from '../examples/jsm/controls/OrbitControls.js';
+        var camera, scene, renderer,position;
+        var world;
+        var l=1;
+        init();
+        var s1= new THREE.Vector3(0-1,-1);
+        var s2= new THREE.Vector3(0,2,2);
+        addSphere(s1);
+        addSphere(s2);
+        var center=s1.add(s2).multiplyScalar(0.5);
+        addCylinder(center,s2);
+        addSphere(new THREE.Vector3(0,0,0),0.05);
+        addSphere(new THREE.Vector3(1,0,0),0.05);
+        addSphere(new THREE.Vector3(0,1,0),0.05);
+        addSphere(new THREE.Vector3(0,0,1),0.05);
+		animate();
+        function init() 
+        {
+            camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 100 );
+            
+            camera.position.set( - 1, 1, 2 );
+            camera.lookAt( 0, 0, 0 );
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color( 0x666666 );
+            var light = new THREE.HemisphereLight();
+            light.intensity = 0.35;
+            scene.add( light );
+
+            var light = new THREE.DirectionalLight();
+            light.position.set( 5, 5, 5 );
+            light.castShadow = true;
+            light.shadow.camera.zoom = 2;
+            scene.add( light );
+            renderer = new THREE.WebGLRenderer( { antialias: true } );
+            renderer.setPixelRatio( window.devicePixelRatio );
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            renderer.shadowMap.enabled = true;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            document.body.appendChild( renderer.domElement );
+            new OrbitControls( camera, renderer.domElement );
+
+        }
+        function animate() 
+        {
+            requestAnimationFrame( animate );
+            renderer.render( scene, camera );
+        }
+        
+        function addCylinder(vector,pointat,radius=0.05)
+        {
+            var geometry = new THREE.CylinderBufferGeometry(radius,radius,l,8);
+            var material = new THREE.MeshLambertMaterial();
+            var mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            var matrix=new THREE.Matrix4();
+            matrix.lookAt(vector,pointat,new THREE.Vector3(0,1,0));
+            mesh.applyMatrix4(matrix);
+            mesh.position.copy(vector);
+            mesh.rotateX(Math.PI/2);
+            scene.add(mesh);
+
+        }
+        function addSphere(vector,radius=0.1,mass=0.1)
+        {
+            var geometry = new THREE.SphereBufferGeometry(radius,8,8);
+            var material = new THREE.MeshLambertMaterial();
+            var mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            var matrix = new THREE.Matrix4();
+            matrix.setPosition(vector);
+            mesh.applyMatrix4(matrix);
+            scene.add(mesh);
+        }
+  
+        window.addEventListener('resize', onResize);
+
+        function onResize() {
+        // サイズを取得
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        // レンダラーのサイズを調整する
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(width, height);
+
+        // カメラのアスペクト比を正す
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        }
+    </script>
+</body>
+</html>

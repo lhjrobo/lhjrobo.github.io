@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>exercise3</title>
+</head>
+<style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+  </style>
+<body>
+    <script src="../build/three.js"></script>
+    <script src="../examples/js/libs/cannon.js"></script>
+    <script type="module">
+        import { OrbitControls } from '../examples/jsm/controls/OrbitControls.js';
+        var camera, scene, renderer,position;
+        var world;
+        var frameRate = 60;
+        var frameTime = 1 / frameRate;
+        var k=1000;
+        var k2=5;
+        var k3=500;
+        var c=0.2;
+        var l=1;
+        var meshes=[];
+        var linemeshes=[];
+        var meshMap=new WeakMap();
+        var bodyMap=new WeakMap();
+        var indexMap=new WeakMap();
+        var linemeshMap=new WeakMap();
+        var lastTime=0;
+        var g=5;
+        var globalgravity=10;
+        var bondnumber=4;
+        init();
+        physicsinit();
+        addSphere(new THREE.Vector3(1,0,0),0.1,0);
+        //addSphere(new THREE.Vector3(1,0,0),0.1,0);
+        //addSphere(new THREE.Vector3(2,1,0));
+        //addSphere(new THREE.Vector3(1,1,1));
+        //addSphere(new THREE.Vector3(1,3,1));
+        //addSphere(new THREE.Vector3(1,10,1));
+        //meshMap.get(meshes[0]).velocity=new CANNON.Vec3(0,0,0.5);
+        //meshMap.get(meshes[1]).velocity=new CANNON.Vec3(0,0,-0.5);
+        addPlane();
+        //interaction();
+		animate();
+        function init() 
+        {
+            camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 100 );
+            
+            camera.position.set( - 1, 1, 2 );
+            camera.lookAt( 0, 0, 0 );
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color( 0x666666 );
+            var light = new THREE.HemisphereLight();
+            light.intensity = 0.35;
+            scene.add( light );
+
+            var light = new THREE.DirectionalLight();
+            light.position.set( 5, 5, 5 );
+            light.castShadow = true;
+            light.shadow.camera.zoom = 2;
+            scene.add( light );
+            renderer = new THREE.WebGLRenderer( { antialias: true } );
+            renderer.setPixelRatio( window.devicePixelRatio );
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            renderer.shadowMap.enabled = true;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            document.body.appendChild( renderer.domElement );
+            new OrbitControls( camera, renderer.domElement );
+
+        }
+        function physicsinit()
+        {
+            world = new CANNON.World();
+            world.gravity.set( 0,-globalgravity, 0 );
+            world.broadphase = new CANNON.SAPBroadphase( world );
+            world.solver.iterations = 40;
+            world.solver.tolerance = 0.00001;
+        }
+        function animate() 
+        {
+            var time = performance.now();
+
+            if ( lastTime > 0 ) {
+
+                var delta = ( time - lastTime ) / 1000;
+
+                // console.time( 'world.step' );
+                world.step( frameTime, delta, frameRate );
+                // console.timeEnd( 'world.step' );
+
+            }
+            lastTime = time;
+            connectivitysearch();
+            for(var mesh of meshes)
+            {
+                var body = meshMap.get( mesh );
+                mesh.position.copy(body.position);
+                //console.log(body.position);
+            }
+            
+            for(var linemesh of linemeshes)
+            {
+                var body = linemeshMap.get( linemesh );
+                linemesh.position.copy(body.position);
+                linemesh.quaternion.copy(body.quaternion);
+            }
+            
+            requestAnimationFrame( animate );
+            renderer.render( scene, camera );
+        }
+        /*
+        function interaction()
+        {
+            for(var mesh of meshes)
+            {
+                var body=meshMap.get(mesh);
+                body.preStep=function()
+                {
+                    var mesh=bodyMap.get(this);
+                    if(indexMap.get(mesh).length==0)
+                    {
+                        var force=new CANNON.Vec3();
+                        for(var mesh2 of meshes)
+                        {
+                            var body2=meshMap.get(mesh2);
+                            var distancevec=this.position.vsub(body2.position);
+                            var distance=distancevec.length();
+                            if(distance>0)
+                            {
+                                //console.log(distance);
+                                var subforce=distancevec.scale(-g/Math.pow(distance,3));
+                                //console.log(subforce);
+                                force.vadd(subforce,force);
+                                //console.log(force);
+                            }
+                        }
+                        //console.log(force);
+                        this.force=force;
+                        this.force.vadd(new CANNON.Vec3(0,-globalgravity,0),this.force);
+                    }
+                    else
+                    {
+                        //console.log("i"+meshes.indexOf(mesh));
+                        var primaryconnect=indexMap.get(mesh);
+                        //console.log("p"+primaryconnect);
+                        var force=new CANNON.Vec3(0,0,0);
+                        var trees=[];
+                        for(var i of primaryconnect)
+                        {
+                            var secondaryconnect=indexMap.get(meshes[i]);
+                            for(var j of secondaryconnect)
+                            {
+                                //console.log("p"+primaryconnect);
+                                //console.log("s"+secondaryconnect);
+                                if(j!=meshes.indexOf(mesh))
+                                {
+                                    //console.log(j);
+                                    var tree=[];
+                                    tree.push(meshes.indexOf(mesh));
+                                    tree.push(i);
+                                    tree.push(j);
+                                    trees.push(tree);
+                                }
+                            }
+                        }
+                        //console.log(trees[0]);
+                        for(var triplet of trees)
+                        {
+                            var x0=meshMap.get(meshes[triplet[0]]).position;
+                            var x1=meshMap.get(meshes[triplet[1]]).position;
+                            var x2=meshMap.get(meshes[triplet[2]]).position;
+                            var a=x0.vsub(x1);
+                            //console.log(a.length());
+                            var b=x1.vsub(x2);
+                            var p=a.dot(b)/a.dot(a);
+                            var c=b.vsub(a.scale(p));
+                            //console.log(c);
+                            c.normalize();
+                            var angle=Math.PI-Math.acos(-a.dot(b)/(a.length()*b.length()));
+                            c.scale(angle*k3,c);
+                            force.vadd(c,force);
+                        }
+                        //body.applyForce(velocity,body.position);
+                        this.force.copy(force);
+                        this.force.vadd(new CANNON.Vec3(0,-globalgravity,0),this.force);
+                        console.log("force =   "+this.force);
+                        console.log("force called");
+                    }
+                }
+            }
+        }*/
+        function interactionadd(mesh)
+        {
+            var body=meshMap.get(mesh);
+            body.preStep=function()
+            {
+                var mesh=bodyMap.get(this);
+                if(indexMap.get(mesh).length==0)
+                {
+                    var force=new CANNON.Vec3();
+                    for(var mesh2 of meshes)
+                    {
+                        var body2=meshMap.get(mesh2);
+                        var distancevec=this.position.vsub(body2.position);
+                        var distance=distancevec.length();
+                        if(distance>0)
+                        {
+                            //console.log(distance);
+                            var subforce=distancevec.scale(-g/Math.pow(distance,1));
+                            //console.log(subforce);
+                            force.vadd(subforce,force);
+                            //console.log(force);
+                        }
+                    }
+                    //console.log(force);
+                    this.force=force;
+                    this.force.vadd(new CANNON.Vec3(0,-globalgravity,0),this.force);
+                }
+                else
+                {
+                    //console.log("i"+meshes.indexOf(mesh));
+                    var primaryconnect=indexMap.get(mesh);
+                    //console.log("p"+primaryconnect);
+                    var force=new CANNON.Vec3(0,0,0);
+                    var trees=[];
+                    for(var i of primaryconnect)
+                    {
+                        var secondaryconnect=indexMap.get(meshes[i]);
+                        for(var j of secondaryconnect)
+                        {
+                            //console.log("p"+primaryconnect);
+                            //console.log("s"+secondaryconnect);
+                            if(j!=meshes.indexOf(mesh))
+                            {
+                                //console.log(j);
+                                var tree=[];
+                                tree.push(meshes.indexOf(mesh));
+                                tree.push(i);
+                                tree.push(j);
+                                trees.push(tree);
+                            }
+                        }
+                    }
+                    //console.log(trees[0]);
+                    for(var triplet of trees)
+                    {
+                        var x0=meshMap.get(meshes[triplet[0]]).position;
+                        var x1=meshMap.get(meshes[triplet[1]]).position;
+                        var x2=meshMap.get(meshes[triplet[2]]).position;
+                        var a=x0.vsub(x1);
+                        //console.log(a.length());
+                        var b=x1.vsub(x2);
+                        var p=a.dot(b)/a.dot(a);
+                        var c=b.vsub(a.scale(p));
+                        //console.log(c);
+                        c.normalize();
+                        var angle=Math.PI-Math.acos(-a.dot(b)/(a.length()*b.length()));
+                        c.scale(angle*k3,c);
+                        force.vadd(c,force);
+                    }
+                    //body.applyForce(velocity,body.position);
+                    this.force.copy(force);
+                    //this.force.vadd(new CANNON.Vec3(0,-globalgravity,0),this.force);
+                    console.log("force =   "+this.force);
+                    console.log("force called");
+                }
+            }
+        }
+
+
+
+
+
+
+
+
+        function addSphere(vector,radius=0.1,mass=1)
+        {
+            var geometry = new THREE.SphereBufferGeometry(radius,32,32);
+            var material = new THREE.MeshLambertMaterial();
+            var mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            var matrix = new THREE.Matrix4();
+            matrix.setPosition(vector);
+            mesh.applyMatrix4(matrix);
+            var position = new CANNON.Vec3();
+            position.copy( mesh.position );
+            var material=new CANNON.Material();
+            var body = new CANNON.Body({position: position,mass: mass,material: material,shape: new CANNON.Particle()});
+            body.linearDamping=c;
+            scene.add(mesh);
+            world.addBody(body);
+            meshes.push(mesh);
+            meshMap.set(mesh,body);
+            bodyMap.set(body,mesh);
+            indexMap.set(mesh,[]);
+            interactionadd(mesh);
+        }
+        function addCylinder(body1,body2,radius=0.05,mass=1)
+        {
+            var geometry = new THREE.CylinderBufferGeometry(radius,radius,l,32,1);
+            var material = new THREE.MeshLambertMaterial();
+            var mesh = new THREE.Mesh(geometry, material);
+            var pointat=body1.position;
+            var vector=body1.position.vadd(body2.position).scale(0.5);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            var matrix=new THREE.Matrix4();
+            matrix.lookAt(vector,pointat,new THREE.Vector3(0,1,0));
+            mesh.applyMatrix4(matrix);
+            mesh.position.copy(vector);
+            mesh.rotateX(Math.PI/2);
+            var material=new CANNON.Material();
+            var body = new CANNON.Body
+            ({position: mesh.position,
+                quaternion: mesh.quaternion,
+                mass: mass,
+                material: material,
+                shape: new CANNON.Cylinder(radius,radius,l,8,1)});
+            //body.collisionFilterMask=0;
+            body.linearDamping=c;
+            body.angularDamping=c;
+            scene.add(mesh);
+            world.addBody(body);
+            var lock1= new CANNON.PointToPointConstraint(body,new CANNON.Vec3(0,-l/2,0),body1,new CANNON.Vec3(0,0,0),1e20);
+            var lock2= new CANNON.PointToPointConstraint(body,new CANNON.Vec3(0,l/2,0),body2,new CANNON.Vec3(0,0,0),1e20);
+            world.addConstraint(lock1);
+            world.addConstraint(lock2);
+            linemeshes.push(mesh);
+            linemeshMap.set(mesh,body);
+            console.log("called");
+            console.log(mesh.quaternion)
+        }
+        function addPlane(vector=(0,0,0))
+        {
+            var plane = new THREE.Mesh(
+                new THREE.PlaneBufferGeometry( 5,5 ),
+                //new THREE.ShadowMaterial( { color: 0x111111 } ),
+                new THREE.MeshLambertMaterial()
+            );
+            plane.rotation.x = - Math.PI /2;
+            plane.receiveShadow = true;
+            scene.add( plane );
+            var position = new CANNON.Vec3();
+            position.copy( plane.position );
+            var quaternion = new CANNON.Quaternion();
+            quaternion.copy( plane.quaternion );
+
+            var body = new CANNON.Body( {
+                position: position,
+                quaternion: quaternion,
+                mass: 0,
+                shape: new CANNON.Plane()
+            } );
+            world.addBody( body );
+        }
+        function connectivitysearch()
+        {
+            for(var mesh of meshes)
+            {
+                var body=meshMap.get(mesh);
+                for(var mesh2 of meshes)
+                {
+                    var body2=meshMap.get(mesh2);
+                    var distancevec=body.position.vsub(body2.position);
+                    var distance=distancevec.length();
+                    if(distance>0)
+                    {
+                        var i=meshes.indexOf(mesh2);
+                        if(indexMap.get(mesh).indexOf(i)==-1 && distance<=l)
+                        {
+                            if(indexMap.get(mesh).length<bondnumber && indexMap.get(mesh2).length<bondnumber)
+                            {
+                                body.velocity.copy(new CANNON.Vec3(0,0,0));
+                                body2.velocity.copy(new CANNON.Vec3(0,0,0));
+                                body.force.copy(new CANNON.Vec3(0,0,0));
+                                body2.force.copy(new CANNON.Vec3(0,0,0));
+                                body.position.copy(body2.position.vadd(distancevec.scale(l/distance)));
+                                indexMap.get(mesh).push(i);
+                                indexMap.get(mesh2).push(meshes.indexOf(mesh));
+                                var center=body.position.vadd(body2.position).scale(0.5);
+                                //var lock= new CANNON.DistanceConstraint(body,body2,l);
+                                //world.addConstraint(lock);
+                                addCylinder(body,body2);
+                            }
+                        }
+                    }
+                    
+                }
+                //console.log(indexMap.get(mesh));
+            }
+        }
+        window.addEventListener('resize', onResize);
+        window.addEventListener("keydown",(event)=>
+        {
+            var keyname=event.key;
+            if(keyname="a")
+            {
+                addSphere(new THREE.Vector3(2*Math.random()-1,5,2*Math.random()-1));
+                console.log("space");
+            }
+        })
+        function onResize() {
+        // サイズを取得
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        // レンダラーのサイズを調整する
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(width, height);
+
+        // カメラのアスペクト比を正す
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>exercise3</title>
+</head>
+<style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+  </style>
+<body>
+    <script src="../build/three.js"></script>
+    <script src="../examples/js/libs/cannon.js"></script>
+    <script type="module">
+        import { OrbitControls } from '../examples/jsm/controls/OrbitControls.js';
+        var camera, scene, renderer,position;
+        var world;
+        var frameRate = 60;
+        var frameTime = 1 / frameRate;
+        var k=1000;
+        var k2=5;
+        var k3=500;
+        var c=0.2;
+        var l=1;
+        var meshes=[];
+        var linemeshes=[];
+        var meshMap=new WeakMap();
+        var bodyMap=new WeakMap();
+        var index1Map=new WeakMap();
+        var index2Map=new WeakMap();
+        var linemeshMap=new WeakMap();
+        var linebodyMap=new WeakMap();
+        var lastTime=0;
+        var g=5;
+        var globalgravity=10;
+        var bondnumber=4;
+        var interactionradius=0.1;
+        init();
+        physicsinit();
+        addCylinder(new THREE.Vector3(0,0,0),new THREE.Vector3(10,0,0),0.05,0);
+        addCylinder(new THREE.Vector3(1.05,1,0),new THREE.Vector3(10,0,0));
+		animate();
+        function init() 
+        {
+            camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 100 );
+            
+            camera.position.set( - 1, 1, 2 );
+            camera.lookAt( 0, 0, 0 );
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color( 0x666666 );
+            var light = new THREE.HemisphereLight();
+            light.intensity = 0.35;
+            scene.add( light );
+
+            var light = new THREE.DirectionalLight();
+            light.position.set( 5, 5, 5 );
+            light.castShadow = true;
+            light.shadow.camera.zoom = 2;
+            scene.add( light );
+            renderer = new THREE.WebGLRenderer( { antialias: true } );
+            renderer.setPixelRatio( window.devicePixelRatio );
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            renderer.shadowMap.enabled = true;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            document.body.appendChild( renderer.domElement );
+            new OrbitControls( camera, renderer.domElement );
+
+        }
+        function physicsinit()
+        {
+            world = new CANNON.World();
+            world.gravity.set( 0,-globalgravity, 0 );
+            world.broadphase = new CANNON.SAPBroadphase( world );
+            world.solver.iterations = 40;
+            world.solver.tolerance = 0.00001;
+        }
+        function animate() 
+        {
+            var time = performance.now();
+
+            if ( lastTime > 0 ) {
+
+                var delta = ( time - lastTime ) / 1000;
+
+                world.step( frameTime, delta, frameRate );
+
+            }
+            lastTime = time;
+            for(var mesh of meshes)
+            {
+                var body = meshMap.get( mesh );
+                mesh.position.copy(body.position);
+            }
+            
+            for(var linemesh of linemeshes)
+            {
+                var body = linemeshMap.get( linemesh );
+                linemesh.position.copy(body.position);
+                linemesh.quaternion.copy(body.quaternion);
+            }
+            connectivitysearch();
+            requestAnimationFrame( animate );
+            renderer.render( scene, camera );
+        }
+        //----------------------------------------------------------------------------------------------------------------
+        
+        function addPlane(vector=(0,0,0))
+        {
+            var plane = new THREE.Mesh(
+                new THREE.PlaneBufferGeometry( 5,5 ),
+                //new THREE.ShadowMaterial( { color: 0x111111 } ),
+                new THREE.MeshLambertMaterial()
+            );
+            plane.rotation.x = - Math.PI /2;
+            plane.receiveShadow = true;
+            scene.add( plane );
+            var position = new CANNON.Vec3();
+            position.copy( plane.position );
+            var quaternion = new CANNON.Quaternion();
+            quaternion.copy( plane.quaternion );
+
+            var body = new CANNON.Body( {
+                position: position,
+                quaternion: quaternion,
+                mass: 0,
+                shape: new CANNON.Plane()
+            } );
+            world.addBody( body );
+        }
+
+        function addCylinder(position,pointat,radius=0.05,mass=1)
+        {
+            var geometry = new THREE.CylinderBufferGeometry(radius,radius,l,32,1);
+            var material = new THREE.MeshLambertMaterial();
+            var mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            var matrix=new THREE.Matrix4();
+            matrix.lookAt(position,pointat,new THREE.Vector3(0,1,0));
+            mesh.applyMatrix4(matrix);
+            mesh.position.copy(position);
+            mesh.rotateX(Math.PI/2);
+            var material=new CANNON.Material();
+            var body = new CANNON.Body
+            ({position: mesh.position,
+                quaternion: mesh.quaternion,
+                mass: mass,
+                material: material,
+                shape: new CANNON.Cylinder(radius,radius,l,8,1)});
+            body.collisionFilterMask=0;
+            body.linearDamping=c;
+            body.angularDamping=c;
+            scene.add(mesh);
+            world.addBody(body);
+            linemeshes.push(mesh);
+            linemeshMap.set(mesh,body);
+            linebodyMap.set(body,mesh);
+            index1Map.set(mesh,[]);
+            index2Map.set(mesh,[]);
+            //interactionadd();
+        }
+
+        function addSphere(vector,radius=0.1,mass=1)
+        {
+            var geometry = new THREE.SphereBufferGeometry(radius,32,32);
+            var material = new THREE.MeshLambertMaterial();
+            var mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            var matrix = new THREE.Matrix4();
+            matrix.setPosition(vector);
+            mesh.applyMatrix4(matrix);
+            var position = new CANNON.Vec3();
+            position.copy( mesh.position );
+            var material=new CANNON.Material();
+            var body = new CANNON.Body({position: position,mass: mass,material: material,shape: new CANNON.Particle()});
+            body.linearDamping=c;
+            scene.add(mesh);
+            world.addBody(body);
+            meshes.push(mesh);
+            meshMap.set(mesh,body);
+        }
+        //----------------------------------------------------------------------------------------------------------------
+        /*function interactionadd(mesh1)
+        {
+            var body1=linemeshMap.get(mesh1);
+            body1.preStep=function()
+            {
+                var mesh1=linebodyhMap.get(this);
+            }
+        }*/
+        function connectivitysearch()
+        {
+            for(var mesh1 of linemeshes)
+            {
+                var body1=linemeshMap.get(mesh1);
+                var index11=index1Map.get(mesh1);
+                var index12=index2Map.get(mesh1);
+                var point11=body1.pointToWorldFrame(new CANNON.Vec3(0,l/2,0));
+                var point12=body1.pointToWorldFrame(new CANNON.Vec3(0,-l/2,0));
+                for(var mesh2 of linemeshes)
+                {
+                    var body2=linemeshMap.get(mesh2);
+                    var index21=index1Map.get(mesh2);
+                    var index22=index2Map.get(mesh2);
+                    var point21=body2.pointToWorldFrame(new CANNON.Vec3(0,l/2,0));
+                    var point22=body2.pointToWorldFrame(new CANNON.Vec3(0,-l/2,0));
+                    if(point11.distanceTo(point21)>0 && point11.distanceTo(point21)<interactionradius)
+                    {
+                        if(index11.indexOf(linemeshes.indexOf(mesh2))==-1 && index21.indexOf(linemeshes.indexOf(mesh1))==-1)
+                        {
+                            if(index11.length<bondnumber && index21.length<bondnumber)
+                            {
+                                index1Map.get(mesh1).push(linemeshes.indexOf(mesh2));
+                                index1Map.get(mesh2).push(linemeshes.indexOf(mesh1));
+                                var lock=new CANNON.PointToPointConstraint(body1,new CANNON.Vec3(0,l/2,0),body2,new CANNON.Vec3(0,l/2,0),1e20);
+                                world.addConstraint(lock);
+                            }
+                        }
+                    }
+                    else if(point11.distanceTo(point22)>0 && point11.distanceTo(point22)<interactionradius)
+                    {
+                        if(index11.indexOf(linemeshes.indexOf(mesh2))==-1 && index22.indexOf(linemeshes.indexOf(mesh1))==-1)
+                        {
+                            if(index11.length<bondnumber && index22.length<bondnumber)
+                            {
+                                index1Map.get(mesh1).push(linemeshes.indexOf(mesh2));
+                                index2Map.get(mesh2).push(linemeshes.indexOf(mesh1));
+                                var lock=new CANNON.PointToPointConstraint(body1,new CANNON.Vec3(0,l/2,0),body2,new CANNON.Vec3(0,-l/2,0),1e20);
+                                world.addConstraint(lock);
+                            }
+                        }
+                    }
+                    else if(point12.distanceTo(point21)>0 && point12.distanceTo(point21)<interactionradius)
+                    {
+                        if(index12.indexOf(linemeshes.indexOf(mesh2))==-1 && index21.indexOf(linemeshes.indexOf(mesh1))==-1)
+                        {
+                            if(index12.length<bondnumber && index21.length<bondnumber)
+                            {
+                                index2Map.get(mesh1).push(linemeshes.indexOf(mesh2));
+                                index1Map.get(mesh2).push(linemeshes.indexOf(mesh1));
+                                var lock=new CANNON.PointToPointConstraint(body1,new CANNON.Vec3(0,-l/2,0),body2,new CANNON.Vec3(0,l/2,0),1e20);
+                                world.addConstraint(lock);
+                            }
+                        }
+                    }
+                    else if(point12.distanceTo(point22)>0 && point12.distanceTo(point22)<interactionradius)
+                    {
+                        if(index12.indexOf(linemeshes.indexOf(mesh2))==-1 && index22.indexOf(linemeshes.indexOf(mesh1))==-1)
+                        {
+                            if(index12.length<bondnumber && index22.length<bondnumber)
+                            {
+                                index2Map.get(mesh1).push(linemeshes.indexOf(mesh2));
+                                index2Map.get(mesh2).push(linemeshes.indexOf(mesh1));
+                                var lock=new CANNON.PointToPointConstraint(body1,new CANNON.Vec3(0,-l/2,0),body2,new CANNON.Vec3(0,-l/2,0),1e20);
+                                world.addConstraint(lock);
+                            }
+                        }
+                    }
+                }
+
+            }
+        }
+        //----------------------------------------------------------------------------------------------------------------
+        window.addEventListener('resize', onResize);
+        window.addEventListener("keydown",(event)=>
+        {
+            var keyname=event.key;
+            if(keyname="a")
+            {
+                addSphere(new THREE.Vector3(2*Math.random()-1,5,2*Math.random()-1));
+                console.log("space");
+            }
+        })
+        function onResize() {
+        // サイズを取得
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        // レンダラーのサイズを調整する
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(width, height);
+
+        // カメラのアスペクト比を正す
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        }
+    </script>
+</body>
+</html>
