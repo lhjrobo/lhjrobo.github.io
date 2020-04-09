@@ -18,26 +18,32 @@
         import { OrbitControls } from '../examples/jsm/controls/OrbitControls.js';
         var camera, scene, renderer,position;
         var world;
-        var frameRate = 60;
+        var frameRate = 400;
         var frameTime = 1 / frameRate;
         var k=1000;
         var k2=5;
-        var k3=500;
-        var c=0.2;
+        var k3=20;
+        var c=0.5;
+        var cconnected=0.8;
         var l=1;
         var meshes=[];
         var linemeshes=[];
         var meshMap=new WeakMap();
         var bodyMap=new WeakMap();
         var indexMap=new WeakMap();
+        var lineindex1Map=new WeakMap();
+        var lineindex2Map=new WeakMap();
         var linemeshMap=new WeakMap();
+        var linebodyMap=new WeakMap();
         var lastTime=0;
-        var g=5;
-        var globalgravity=10;
+        var g=10;
+        var globalgravity=0;
         var bondnumber=4;
         init();
         physicsinit();
         addSphere(new THREE.Vector3(1,0,0),0.1,0);
+        addSphere(new THREE.Vector3(0,0,0),0.1,0);
+        addSphere(new THREE.Vector3(0,0,1),0.1,0);
         //addSphere(new THREE.Vector3(1,0,0),0.1,0);
         //addSphere(new THREE.Vector3(2,1,0));
         //addSphere(new THREE.Vector3(1,1,1));
@@ -45,7 +51,7 @@
         //addSphere(new THREE.Vector3(1,10,1));
         //meshMap.get(meshes[0]).velocity=new CANNON.Vec3(0,0,0.5);
         //meshMap.get(meshes[1]).velocity=new CANNON.Vec3(0,0,-0.5);
-        addPlane();
+        //addPlane();
         //interaction();
 		animate();
         function init() 
@@ -115,87 +121,6 @@
             requestAnimationFrame( animate );
             renderer.render( scene, camera );
         }
-        /*
-        function interaction()
-        {
-            for(var mesh of meshes)
-            {
-                var body=meshMap.get(mesh);
-                body.preStep=function()
-                {
-                    var mesh=bodyMap.get(this);
-                    if(indexMap.get(mesh).length==0)
-                    {
-                        var force=new CANNON.Vec3();
-                        for(var mesh2 of meshes)
-                        {
-                            var body2=meshMap.get(mesh2);
-                            var distancevec=this.position.vsub(body2.position);
-                            var distance=distancevec.length();
-                            if(distance>0)
-                            {
-                                //console.log(distance);
-                                var subforce=distancevec.scale(-g/Math.pow(distance,3));
-                                //console.log(subforce);
-                                force.vadd(subforce,force);
-                                //console.log(force);
-                            }
-                        }
-                        //console.log(force);
-                        this.force=force;
-                        this.force.vadd(new CANNON.Vec3(0,-globalgravity,0),this.force);
-                    }
-                    else
-                    {
-                        //console.log("i"+meshes.indexOf(mesh));
-                        var primaryconnect=indexMap.get(mesh);
-                        //console.log("p"+primaryconnect);
-                        var force=new CANNON.Vec3(0,0,0);
-                        var trees=[];
-                        for(var i of primaryconnect)
-                        {
-                            var secondaryconnect=indexMap.get(meshes[i]);
-                            for(var j of secondaryconnect)
-                            {
-                                //console.log("p"+primaryconnect);
-                                //console.log("s"+secondaryconnect);
-                                if(j!=meshes.indexOf(mesh))
-                                {
-                                    //console.log(j);
-                                    var tree=[];
-                                    tree.push(meshes.indexOf(mesh));
-                                    tree.push(i);
-                                    tree.push(j);
-                                    trees.push(tree);
-                                }
-                            }
-                        }
-                        //console.log(trees[0]);
-                        for(var triplet of trees)
-                        {
-                            var x0=meshMap.get(meshes[triplet[0]]).position;
-                            var x1=meshMap.get(meshes[triplet[1]]).position;
-                            var x2=meshMap.get(meshes[triplet[2]]).position;
-                            var a=x0.vsub(x1);
-                            //console.log(a.length());
-                            var b=x1.vsub(x2);
-                            var p=a.dot(b)/a.dot(a);
-                            var c=b.vsub(a.scale(p));
-                            //console.log(c);
-                            c.normalize();
-                            var angle=Math.PI-Math.acos(-a.dot(b)/(a.length()*b.length()));
-                            c.scale(angle*k3,c);
-                            force.vadd(c,force);
-                        }
-                        //body.applyForce(velocity,body.position);
-                        this.force.copy(force);
-                        this.force.vadd(new CANNON.Vec3(0,-globalgravity,0),this.force);
-                        console.log("force =   "+this.force);
-                        console.log("force called");
-                    }
-                }
-            }
-        }*/
         function interactionadd(mesh)
         {
             var body=meshMap.get(mesh);
@@ -213,7 +138,7 @@
                         if(distance>0)
                         {
                             //console.log(distance);
-                            var subforce=distancevec.scale(-g/Math.pow(distance,1));
+                            var subforce=distancevec.scale(-g/Math.pow(distance,2));
                             //console.log(subforce);
                             force.vadd(subforce,force);
                             //console.log(force);
@@ -223,6 +148,7 @@
                     this.force=force;
                     this.force.vadd(new CANNON.Vec3(0,-globalgravity,0),this.force);
                 }
+                /*
                 else
                 {
                     //console.log("i"+meshes.indexOf(mesh));
@@ -270,6 +196,91 @@
                     //this.force.vadd(new CANNON.Vec3(0,-globalgravity,0),this.force);
                     console.log("force =   "+this.force);
                     console.log("force called");
+                }*/
+            }
+        }
+        function lineinteractionadd(linemesh)
+        {
+            var linebody=linemeshMap.get(linemesh);
+            linebody.preStep=function()
+            {
+                var spheremesh1=lineindex1Map.get(linebodyMap.get(this));
+                var spheremesh2=lineindex2Map.get(linebodyMap.get(this));
+                if(indexMap.get(spheremesh1).length>0)
+                {
+                    var primaryconnect=indexMap.get(spheremesh1);
+                    var force=new CANNON.Vec3(0,0,0);
+                    var trees=[];
+                    for(var i of primaryconnect)
+                    {
+                        var secondaryconnect=indexMap.get(meshes[i]);
+                        for(var j of secondaryconnect)
+                        {
+                            if(j!=meshes.indexOf(spheremesh1))
+                            {
+                                var tree=[];
+                                tree.push(meshes.indexOf(spheremesh1));
+                                tree.push(i);
+                                tree.push(j);
+                                trees.push(tree);
+                            }
+                        }
+                    }
+                    for(var triplet of trees)
+                    {
+                        var x0=meshMap.get(meshes[triplet[0]]).position;
+                        var x1=meshMap.get(meshes[triplet[1]]).position;
+                        var x2=meshMap.get(meshes[triplet[2]]).position;
+                        var a=x0.vsub(x1);
+                        var b=x1.vsub(x2);
+                        var p=a.dot(b)/a.dot(a);
+                        var q=b.vsub(a.scale(p));
+                        q.normalize();
+                        var angle=Math.PI-Math.acos(-a.dot(b)/(a.length()*b.length()));
+                        q.scale(angle*k3,q);
+                        force.vadd(q,force);
+                    }
+                    //linebody.applyForce(force,linebody.position);
+                    this.force.copy(force);
+                    //this.force.vadd(new CANNON.Vec3(0,-globalgravity,0),this.force);
+                }
+                if(indexMap.get(spheremesh2).length>0)
+                {
+                    var primaryconnect=indexMap.get(spheremesh2);
+                    var force=new CANNON.Vec3(0,0,0);
+                    var trees=[];
+                    for(var i of primaryconnect)
+                    {
+                        var secondaryconnect=indexMap.get(meshes[i]);
+                        for(var j of secondaryconnect)
+                        {
+                            if(j!=meshes.indexOf(spheremesh2))
+                            {
+                                var tree=[];
+                                tree.push(meshes.indexOf(spheremesh2));
+                                tree.push(i);
+                                tree.push(j);
+                                trees.push(tree);
+                            }
+                        }
+                    }
+                    for(var triplet of trees)
+                    {
+                        var x0=meshMap.get(meshes[triplet[0]]).position;
+                        var x1=meshMap.get(meshes[triplet[1]]).position;
+                        var x2=meshMap.get(meshes[triplet[2]]).position;
+                        var a=x0.vsub(x1);
+                        var b=x1.vsub(x2);
+                        var p=a.dot(b)/a.dot(a);
+                        var q=b.vsub(a.scale(p));
+                        q.normalize();
+                        var angle=Math.PI-Math.acos(-a.dot(b)/(a.length()*b.length()));
+                        q.scale(angle*k3,q);
+                        force.vadd(q,force);
+                    }
+                    //linebody.applyForce(force,linebody.position);
+                    this.force.copy(force);
+                    //this.force.vadd(new CANNON.Vec3(0,-globalgravity,0),this.force);
                 }
             }
         }
@@ -280,8 +291,7 @@
 
 
 
-
-        function addSphere(vector,radius=0.1,mass=1)
+        function addSphere(vector,radius=0.1,mass=10)
         {
             var geometry = new THREE.SphereBufferGeometry(radius,32,32);
             var material = new THREE.MeshLambertMaterial();
@@ -304,7 +314,7 @@
             indexMap.set(mesh,[]);
             interactionadd(mesh);
         }
-        function addCylinder(body1,body2,radius=0.05,mass=1)
+        function addCylinder(body1,body2,radius=0.05,mass=10)
         {
             var geometry = new THREE.CylinderBufferGeometry(radius,radius,l,32,1);
             var material = new THREE.MeshLambertMaterial();
@@ -326,8 +336,8 @@
                 material: material,
                 shape: new CANNON.Cylinder(radius,radius,l,8,1)});
             //body.collisionFilterMask=0;
-            body.linearDamping=c;
-            body.angularDamping=c;
+            body.linearDamping=cconnected;
+            body.angularDamping=cconnected;
             scene.add(mesh);
             world.addBody(body);
             var lock1= new CANNON.PointToPointConstraint(body,new CANNON.Vec3(0,-l/2,0),body1,new CANNON.Vec3(0,0,0),1e20);
@@ -336,8 +346,10 @@
             world.addConstraint(lock2);
             linemeshes.push(mesh);
             linemeshMap.set(mesh,body);
-            console.log("called");
-            console.log(mesh.quaternion)
+            linebodyMap.set(body,mesh);
+            lineindex1Map.set(mesh,bodyMap.get(body1));
+            lineindex2Map.set(mesh,bodyMap.get(body2));
+            lineinteractionadd(mesh);
         }
         function addPlane(vector=(0,0,0))
         {

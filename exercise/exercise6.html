@@ -24,7 +24,7 @@
         var k2=5;
         var k3=500;
         var c=0.2;
-        var l=1;
+        var l=0.1;
         var meshes=[];
         var linemeshes=[];
         var meshMap=new WeakMap();
@@ -35,19 +35,20 @@
         var linebodyMap=new WeakMap();
         var lastTime=0;
         var g=5;
-        var globalgravity=10;
-        var bondnumber=4;
-        var interactionradius=0.1;
+        var globalgravity=1;
+        var bondnumber=1;
+        var interactionradius=0.01;
+        var inch=2.54/100;
         init();
         physicsinit();
-        addCylinder(new THREE.Vector3(0,0,0),new THREE.Vector3(10,0,0),0.05,0);
-        addCylinder(new THREE.Vector3(1.05,1,0),new THREE.Vector3(10,0,0));
+        addCylinder(new THREE.Vector3(0,0,0),new THREE.Vector3(1,0,0),inch/4,0);
+        addCylinder(new THREE.Vector3(0.05,0.1,0),new THREE.Vector3(0.05,1,0));
 		animate();
         function init() 
         {
             camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 100 );
             
-            camera.position.set( - 1, 1, 2 );
+            camera.position.set( - 0.2, 0.2, 0.2 );
             camera.lookAt( 0, 0, 0 );
 
             scene = new THREE.Scene();
@@ -102,6 +103,9 @@
                 linemesh.position.copy(body.position);
                 linemesh.quaternion.copy(body.quaternion);
             }
+            var pointa=linemeshMap.get(linemeshes[0]).pointToWorldFrame(new CANNON.Vec3(0,-l/2,0));
+            var pointb=linemeshMap.get(linemeshes[1]).pointToWorldFrame(new CANNON.Vec3(0,l/2,0));
+            console.log(pointa.distanceTo(pointb));
             connectivitysearch();
             requestAnimationFrame( animate );
             renderer.render( scene, camera );
@@ -132,7 +136,7 @@
             world.addBody( body );
         }
 
-        function addCylinder(position,pointat,radius=0.05,mass=1)
+        function addCylinder(position,pointat,radius=inch/4,mass=1)
         {
             var geometry = new THREE.CylinderBufferGeometry(radius,radius,l,32,1);
             var material = new THREE.MeshLambertMaterial();
@@ -164,7 +168,7 @@
             //interactionadd();
         }
 
-        function addSphere(vector,radius=0.1,mass=1)
+        function addSphere(vector,radius=inch/4,mass=1)
         {
             var geometry = new THREE.SphereBufferGeometry(radius,32,32);
             var material = new THREE.MeshLambertMaterial();
@@ -217,7 +221,7 @@
                             {
                                 index1Map.get(mesh1).push(linemeshes.indexOf(mesh2));
                                 index1Map.get(mesh2).push(linemeshes.indexOf(mesh1));
-                                var lock=new CANNON.PointToPointConstraint(body1,new CANNON.Vec3(0,l/2,0),body2,new CANNON.Vec3(0,l/2,0),1e20);
+                                var lock=new CANNON.PointToPointConstraint(body1,new CANNON.Vec3(0,l/2,0),body2,new CANNON.Vec3(0,l/2,0),1e32);
                                 world.addConstraint(lock);
                             }
                         }
@@ -230,7 +234,7 @@
                             {
                                 index1Map.get(mesh1).push(linemeshes.indexOf(mesh2));
                                 index2Map.get(mesh2).push(linemeshes.indexOf(mesh1));
-                                var lock=new CANNON.PointToPointConstraint(body1,new CANNON.Vec3(0,l/2,0),body2,new CANNON.Vec3(0,-l/2,0),1e20);
+                                var lock=new CANNON.PointToPointConstraint(body1,new CANNON.Vec3(0,l/2,0),body2,new CANNON.Vec3(0,-l/2,0),1e32);
                                 world.addConstraint(lock);
                             }
                         }
@@ -243,7 +247,7 @@
                             {
                                 index2Map.get(mesh1).push(linemeshes.indexOf(mesh2));
                                 index1Map.get(mesh2).push(linemeshes.indexOf(mesh1));
-                                var lock=new CANNON.PointToPointConstraint(body1,new CANNON.Vec3(0,-l/2,0),body2,new CANNON.Vec3(0,l/2,0),1e20);
+                                var lock=new CANNON.PointToPointConstraint(body1,new CANNON.Vec3(0,-l/2,0),body2,new CANNON.Vec3(0,l/2,0),1e32);
                                 world.addConstraint(lock);
                             }
                         }
@@ -256,7 +260,7 @@
                             {
                                 index2Map.get(mesh1).push(linemeshes.indexOf(mesh2));
                                 index2Map.get(mesh2).push(linemeshes.indexOf(mesh1));
-                                var lock=new CANNON.PointToPointConstraint(body1,new CANNON.Vec3(0,-l/2,0),body2,new CANNON.Vec3(0,-l/2,0),1e20);
+                                var lock=new CANNON.PointToPointConstraint(body1,new CANNON.Vec3(0,-l/2,0),body2,new CANNON.Vec3(0,-l/2,0),1e32);
                                 world.addConstraint(lock);
                             }
                         }
