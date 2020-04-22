@@ -222,7 +222,12 @@
 
 					controls.lock();
 
-					}, false );
+				}, false );
+				window.addEventListener( 'touchstart', function () {
+
+					controls.lock();
+
+				}, false );
 					controls.addEventListener( 'lock', function () {
 
 						instructions.style.display = 'none';
