@@ -7,6 +7,7 @@
     <style>
         .instructions {
             position: absolute;
+            background-color: #666666;
             color:aliceblue;
             top: 0px;
             width: 100%;
@@ -25,13 +26,14 @@
 <body>
     <div class="instructions">
         <span>赤いボタンはクリックで押せます。</span>
-        <span>右の直方体はReadt To Crawlをイメージしました。灰色枠内をドラックすると直方体が追従します。</span>
+        <span>右の直方体はReady To Crawlをイメージしました。灰色枠内をドラックすると直方体が追従します。</span>
     </div>
     <script type="module">
         import * as THREE from '../build/three.module.js';
         import { PointerLockControls } from '../examples/jsm/controls/PointerLockControls.js';
         import { OrbitControls } from '../examples/jsm/controls/OrbitControls.js';
         import { GLTFLoader } from '../examples/jsm/loaders/GLTFLoader.js';
+        import Stats from '../examples/jsm/libs/stats.module.js';
         let container, controls;
         let camera, scene, renderer;
         let raycaster = new THREE.Raycaster();
@@ -43,6 +45,9 @@
         let field=undefined;
         let bug=undefined;
         let pointer;
+        let stats = new Stats();
+        stats.showPanel( 0 ); // 0: fps, 1: ms, 2: mb, 3+: custom
+        document.body.appendChild( stats.dom );
         function init() {
             container = document.createElement( 'div' );
             document.body.appendChild( container );
@@ -68,8 +73,10 @@
         }
 
         function animate(){
+            stats.begin();
             requestAnimationFrame( animate );
             render();
+            stats.end();
         }
         function render() {
             if(scene.children[0]!==undefined&&field===undefined){
