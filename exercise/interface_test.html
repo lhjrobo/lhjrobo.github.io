@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>interfaces</title>
+</head>
+<body>
+    <script type="module">
+        import * as THREE from '../build/three.module.js';
+        import { PointerLockControls } from '../examples/jsm/controls/PointerLockControls.js';
+        import { OrbitControls } from '../examples/jsm/controls/OrbitControls.js';
+        import { GLTFLoader } from '../examples/jsm/loaders/GLTFLoader.js';
+        let container, controls;
+        let camera, scene, renderer;
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+        let intersects, intersect_knob;
+        let intersected={object:null,color:null};
+        let clicked={object:null,position:new THREE.Vector3()};
+        let knob_clicked=false;
+        init();
+        animate();
+        function init() {
+            container = document.createElement( 'div' );
+			document.body.appendChild( container );
+            camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 0.01, 50 );
+            camera.position.set( 7, 7, 7);
+            camera.lookAt(0,0,0);
+            let loader = new GLTFLoader().setPath( '' );
+            loader.load('box.glb',function(gltf){
+                gltf.scene.traverse( function ( child ) {
+                        console.log(child);
+                });
+                scene=gltf.scene;
+            });
+            //console.log(scene.children[0]);
+            //slider_base=scene.children[0].getObjectByName("slider_base");
+            //setSlider(slider_base);
+            renderer = new THREE.WebGLRenderer( { antialias: true } );
+            renderer.setPixelRatio( window.devicePixelRatio );
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 0.8;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            container.appendChild( renderer.domElement );
+            window.addEventListener( 'mousemove', onMouseMove, false );
+            window.addEventListener( 'mousedown', onMouseDown, false );
+            window.addEventListener( 'mouseup', onMouseUp, false );
+            controls=new OrbitControls(camera, renderer.domElement );
+        }
+
+        function animate(){
+            requestAnimationFrame( animate );
+            render();
+        }
+        function render() {
+            /*
+                raycaster.setFromCamera( mouse, camera );
+                intersects = raycaster.intersectObjects(scene.children[0].children)
+                intersect_knob=raycaster.intersectObject(scene.children[0].getObjectByName("slider_base"));
+                if ( intersects.length > 0 ) {
+                    if(intersected.object!=intersects[0].object){
+                        if(intersected.object!=null){
+                            intersected.object.material.color.setHex( intersected.color );
+                        }
+                        intersected.object = intersects[0].object;
+						intersected.color = intersects[0].object.material.color.getHex();
+                    }
+                }
+                else{
+                    if(intersected.object!==null){
+                        intersected.object.material.color.set(intersected.color);
+                    }
+                    intersected.object = null;
+                    intersected.color = null;
+                }*/
+				renderer.render( scene, camera );
+        }
+        function onMouseMove( event ) {
+            mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+            mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+        }
+        function onMouseDown(event){
+            if(intersected.object!==null && intersected.object.name==="button")
+            {
+                clicked.object=intersected.object;
+                clicked.position.copy(clicked.object.position);
+                console.log(clicked.position);
+                clicked.object.position.set(clicked.position.x,clicked.position.y-0.2,clicked.position.z);
+                console.log("down_triggered");
+            }
+            if(intersected.object!==null && intersected.object.name==="slider_knob")
+            {
+                clicked.object=intersected.object;
+                clicked.position.copy(clicked.object.position);
+                console.log(clicked.position);
+                clicked.object.position.set(clicked.position.x,clicked.position.y-0.01,clicked.position.z);
+                console.log("down_triggered");
+            }
+        }
+        function onMouseUp(event){
+            if(clicked.object!==null){
+                console.log(clicked.position);
+                clicked.object.position.copy(clicked.position);
+                clicked.object=null;
+                clicked.position=new THREE.Vector3();
+                console.log("up_triggered");
+            }
+            
+        }
+        function setSlider(slider_base){
+            let geometry=new THREE.PlaneBufferGeometry(100,100);
+            let material=new new THREE.MeshBasicMaterial( {color: 0xffff00, side: THREE.DoubleSide} );
+            material.visible=false;
+            let plane=new THREE.Mesh( geometry, material );
+            plane.position.copy(slider_base.position);
+            plane.quaternion.copy(slider_base.quaternion);
+            plane.name=slider_base.name+"plane";
+            scene.add(plane);
+        }
+    </script>
+</body>
+</html>
