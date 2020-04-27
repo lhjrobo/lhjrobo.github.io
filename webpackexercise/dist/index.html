@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        .instructions {
+            position: absolute;
+            background-color: #666666;
+            color:aliceblue;
+            top: 0px;
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            text-align: center;
+            -moz-user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            pointer-events: none;
+            z-index: 1; /* TODO Solve this in HTML */
+        }
+    </style>
+    <title>interface</title>
+</head>
+<body>
+    <div class="instructions">
+        <span>赤いボタンはクリックで押せます。</span>
+        <span>右の直方体はReady To Crawlをイメージしました。灰色枠内をドラックすると直方体が追従します。</span>
+    </div>
+    <script defer src="main.js"></script>
+</body>
+</html>
