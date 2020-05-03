@@ -1,0 +1,24 @@
+{
+  "files": {
+    "main.css": "./static/css/main.c87e1df9.chunk.css",
+    "main.js": "./static/js/main.d54696e1.chunk.js",
+    "main.js.map": "./static/js/main.d54696e1.chunk.js.map",
+    "runtime-main.js": "./static/js/runtime-main.f10eadef.js",
+    "runtime-main.js.map": "./static/js/runtime-main.f10eadef.js.map",
+    "static/js/2.2d8c1bea.chunk.js": "./static/js/2.2d8c1bea.chunk.js",
+    "static/js/2.2d8c1bea.chunk.js.map": "./static/js/2.2d8c1bea.chunk.js.map",
+    "index.html": "./index.html",
+    "precache-manifest.13c5dd4ff200d41eccc1f0310803c532.js": "./precache-manifest.13c5dd4ff200d41eccc1f0310803c532.js",
+    "service-worker.js": "./service-worker.js",
+    "static/css/main.c87e1df9.chunk.css.map": "./static/css/main.c87e1df9.chunk.css.map",
+    "static/js/2.2d8c1bea.chunk.js.LICENSE.txt": "./static/js/2.2d8c1bea.chunk.js.LICENSE.txt",
+    "static/media/Yam_greetings.PNG": "./static/media/Yam_greetings.8066dada.PNG",
+    "static/media/logo2.png": "./static/media/logo2.40b7a4ab.png"
+  },
+  "entrypoints": [
+    "static/js/runtime-main.f10eadef.js",
+    "static/js/2.2d8c1bea.chunk.js",
+    "static/css/main.c87e1df9.chunk.css",
+    "static/js/main.d54696e1.chunk.js"
+  ]
+}
